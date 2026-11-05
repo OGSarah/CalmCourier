@@ -1,4 +1,5 @@
 <div align="center">
+  <img src="Screenshots/AppIcon.png" width="300" style="border-radius: 22px;" alt="CalmCourier app icon">
   <h1>CalmCourier</h1>
   <p><strong>A delivery app that notices friction and answers with a better deal, never a worse one.</strong></p>
 </div>
@@ -27,16 +28,14 @@ No screenshots yet. Once the app is running, they would live in `Screenshots/` a
 
 ## Technologies
 
-- Swift (current toolchain shipping with the iOS 27 SDK)
+- Swift 6
 - SwiftUI
 - UIKit, for window-level touch capture and battery state
 - CoreMotion, for shake detection
-- Observation (`@Observable`)
+- Observation framework
 - Swift Testing framework (unit and scenario tests)
 - First-party Apple frameworks only, no third-party dependencies
-- iOS 27 minimum OS target
-
-> The code samples in this README rely on APIs that have existed since iOS 17/18 (`@Observable`, `onScrollGeometryChange`, `UIDevice` battery APIs). They are expected to carry forward, but check the iOS 27 release notes for deprecations before building.
+- iOS 27.2 minimum OS target
 
 ## Architecture
 
