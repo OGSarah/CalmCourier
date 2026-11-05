@@ -9,9 +9,11 @@ import SwiftUI
 
 @main
 struct CalmCourierApp: App {
+    @State private var environment = AppEnvironment.live()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            AppRootView(environment: environment)
         }
     }
 }

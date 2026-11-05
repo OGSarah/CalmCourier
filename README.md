@@ -25,6 +25,7 @@ No screenshots yet. Once the app is running, they would live in `Screenshots/` a
 - **Works without real frustration**: injected events and a battery override make the whole signal, score, and offer loop developable and testable on Simulator.
 - **User opt-out**: a visible setting turns adaptive offers off, which also stops battery monitoring.
 - **On-device only**: nothing is persisted, logged, or sent anywhere.
+- **Accessible**: VoiceOver labels on every control, text that scales up to the largest accessibility sizes, an accent color with at least 4.5:1 contrast in light and dark mode, spoken announcements for offers and checkout errors, and Reduce Motion support. Accessibility audits run in the UI tests.
 
 ## Technologies
 
@@ -39,7 +40,7 @@ No screenshots yet. Once the app is running, they would live in `Screenshots/` a
 
 ## Architecture
 
-Signal collection, scoring, and offer logic are separate stages. Scoring and offers are plain Swift types with no UI dependencies, so they are easy to unit test. Battery state enters the scorer as **context**, not as an event.
+The app follows **MVVM**. Views are SwiftUI only, each screen has an `@Observable` view model that turns shared state into display-ready text and accessibility labels, and the models underneath are plain Swift. Signal collection, scoring, and offer logic are separate stages. Scoring and offers have no UI dependencies, so they are easy to unit test. Battery state enters the scorer as **context**, not as an event.
 
 ```mermaid
 graph TD
@@ -52,10 +53,20 @@ graph TD
         DBG["DebugPanelView"]
     end
 
+    subgraph ViewModels["View models, @Observable"]
+        RLVM["RestaurantListViewModel"]
+        MVVM["MenuViewModel"]
+        CARTVM["CartViewModel"]
+        COVM["CheckoutViewModel"]
+        DBGVM["DebugPanelViewModel"]
+        OP["OfferPresentation<br/>neutral offer copy"]
+    end
+
     subgraph State["Observable state, @MainActor"]
         ENV["AppEnvironment"]
         SC["SignalCollector"]
         BM["BatteryMonitor"]
+        AT["AssistiveTechMonitor<br/>pauses touch signals"]
     end
 
     subgraph Detectors["Signal detectors"]
@@ -84,13 +95,26 @@ graph TD
         CM[["CMMotionManager"]]
     end
 
-    RL --> ENV
-    MV --> SD
-    MV --> ENV
-    CART --> ENV
-    CO --> ENV
+    RL --> RLVM
+    MV --> MVVM
+    CART --> CARTVM
+    CO --> COVM
+    DBG --> DBGVM
+    CART --> BANNER
     CO --> BANNER
-    DBG --> ENV
+    BANNER --> OP
+
+    RLVM --> ENV
+    MVVM --> SC
+    MVVM --> ENV
+    CARTVM --> ENV
+    COVM --> TD
+    COVM --> ENV
+    DBGVM --> ENV
+    RLVM --> OP
+    MVVM --> OP
+    CARTVM --> OP
+    COVM --> OP
 
     TC --> SC
     SD --> SC
@@ -100,6 +124,8 @@ graph TD
 
     BM --> UID
     BM --> BC
+    AT --> UID
+    AT --> SC
 
     SC --> SE
     SE --> AS
@@ -113,7 +139,7 @@ graph TD
     TIER --> OE
     OC --> OE
     MODELS --> OE
-    OE --> BANNER
+    OE --> OP
 ```
 
 And the path a burst of frustrated taps takes, from finger to discount:
@@ -163,11 +189,12 @@ sequenceDiagram
 | :--- | :--- | :--- |
 | **Models** | Value types for the mock catalog and priced carts | `Cart`, `PricedCart`, `Restaurant`, `MenuItem` |
 | **Signals** | Turn raw input into discrete events | `SignalCollector`, `TouchCapture`, `ScrollDetector`, `TypingDetector`, `MotionDetector` |
-| **Context** | Device state that shapes how events are weighted | `BatteryMonitor`, `BatteryContext` |
+| **Context** | Device state that shapes how events are weighted, or whether touch events count at all | `BatteryMonitor`, `BatteryContext`, `AssistiveTechMonitor` |
 | **Scoring** | Weights, decay, baseline, hysteresis, tiers | `AgitationScorer`, `SignalEvent`, `AgitationTier`, `ScoringConfig` |
 | **Offers** | Map a tier to a price, discounts only | `OfferEngine`, `OfferConfig` |
 | **State** | Wires everything together and ticks the scorer once per second | `AppEnvironment` |
-| **Views** | SwiftUI screens, the offer banner, and the debug panel | `RestaurantListView`, `MenuView`, `CartView`, `CheckoutView`, `OfferBanner`, `DebugPanelView` |
+| **View models** | One per screen: display-ready text, accessibility labels, and user intents | `RestaurantListViewModel`, `MenuViewModel`, `CartViewModel`, `CheckoutViewModel`, `DebugPanelViewModel`, `OfferPresentation` |
+| **Views** | SwiftUI screens, the offer banner, and the debug panel. No business logic | `AppRootView`, `RestaurantListView`, `MenuView`, `CartView`, `CheckoutView`, `OfferBanner`, `DebugPanelView` |
 
 ### Focus areas
 
@@ -238,7 +265,7 @@ You do not need to rage-tap your phone to work on this.
 
 **1. The debug panel injects events**
 
-Triple-tap the app title, or shake with the debug toggle on, to open `DebugPanelView`. Buttons inject synthetic rage taps, failed checkouts, and shakes through the same path a real signal takes.
+Tap the ladybug button in the toolbar, triple-tap the app title, or shake with the debug toggle on, to open `DebugPanelView`. Buttons inject synthetic rage taps, failed checkouts, and shakes through the same path a real signal takes.
 
 **2. The battery override replaces the hardware**
 
@@ -274,12 +301,12 @@ Dead-tap detection is approximate because many tappable SwiftUI views are not `U
 1. Clone the repo and open `CalmCourier.xcodeproj`
 2. Build to Simulator or a physical iPhone running iOS 27
 3. Browse two restaurants and add items to the cart
-4. Triple-tap the app title to open the debug panel
+4. Tap the ladybug button (or triple-tap the app title) to open the debug panel
 5. Set the battery override, inject some events, and watch the tier and cart change
 
 ## Debug panel
 
-Triple-tap the app title, or shake with the debug toggle on, to open `DebugPanelView`. It shows:
+Tap the ladybug button in the toolbar, triple-tap the app title, or shake with the debug toggle on, to open `DebugPanelView`. The toolbar button is the path that works with VoiceOver, Switch Control, and Voice Control. It shows:
 
 - Live effective score with a gauge and history sparkline, split into behavioral score and battery baseline
 - Current tier and time until the next tier change is allowed
@@ -304,7 +331,10 @@ Unit and scenario tests use [Swift Testing](https://developer.apple.com/document
 | `AgitationScorerTests` | Expected points per event, decay halving after one half-life, clamping to 0 and 100, hysteresis preventing tier flicker |
 | `BatteryContextTests` | Multiplier and baseline for every level, charging, and Low Power Mode combination; baseline never above 15; charging or unknown level contributes nothing |
 | `OfferEngineTests` | Total never above baseline for any tier, cart, score, or battery state (property-style over many random inputs); cooldown blocking a second agitation offer |
-| `ScenarioTests` | Recorded event sequences and battery states fed through the scorer, asserting the final tier |
+| `ScenarioTests` | Recorded event sequences and battery states fed through the scorer, asserting the tier reached |
+| `SignalDetectorTests` | Rage taps, dead taps, scroll reversals, flicks and the learned baseline, backspace bursts, back-and-forth navigation, and shakes; touch signals dropped while an assistive technology is active |
+| `ViewModelTests` | Display text and spoken labels for each screen, offer copy, cooldown, opt-out, checkout failures, and debug injections, on a manual clock |
+| `CalmCourierUITests` | Browse-to-checkout flow, an injected offer appearing, and `performAccessibilityAudit()` on every screen |
 
 Scenario coverage:
 
@@ -351,14 +381,26 @@ CalmCourier/
 ├── CalmCourier/
 │   ├── App/
 │   │   ├── CalmCourierApp.swift
-│   │   └── AppEnvironment.swift         # wires collector, battery, scorer, engine
+│   │   ├── AppEnvironment.swift         # wires collector, battery, scorer, engine
+│   │   ├── AppEnvironment+Preview.swift # preview data and a manual clock (Debug only)
+│   │   └── AppRoute.swift
+│   ├── Models/
+│   │   ├── Restaurant.swift
+│   │   ├── MenuItem.swift
+│   │   ├── Cart.swift
+│   │   ├── PricedCart.swift
+│   │   ├── Money.swift                  # Decimal rounding and currency text
+│   │   └── CatalogLoader.swift
 │   ├── Signals/
-│   │   ├── SignalCollector.swift        # @Observable, owns all detectors
+│   │   ├── SignalCollector.swift        # @Observable, owns all detectors, gates touch signals
 │   │   ├── TouchCapture.swift           # window-level gesture recognizer
-│   │   ├── ScrollDetector.swift
+│   │   ├── TapPatternDetector.swift     # rage and dead taps
+│   │   ├── ScrollDetector.swift         # reversals, flicks, learned baseline
 │   │   ├── TypingDetector.swift
+│   │   ├── NavigationDetector.swift
 │   │   ├── MotionDetector.swift         # CoreMotion shake
-│   │   └── BatteryMonitor.swift         # level, charging, Low Power Mode
+│   │   ├── BatteryMonitor.swift         # level, charging, Low Power Mode
+│   │   └── AssistiveTechMonitor.swift   # VoiceOver, Switch Control, AssistiveTouch
 │   ├── Scoring/
 │   │   ├── SignalEvent.swift
 │   │   ├── BatteryContext.swift
@@ -366,14 +408,24 @@ CalmCourier/
 │   │   └── AgitationTier.swift
 │   ├── Offers/
 │   │   ├── OfferEngine.swift
-│   │   └── Models/                      # Cart, Restaurant, MenuItem (mock)
+│   │   └── OfferCooldown.swift
+│   ├── ViewModels/
+│   │   ├── RestaurantListViewModel.swift
+│   │   ├── MenuViewModel.swift
+│   │   ├── CartViewModel.swift
+│   │   ├── CheckoutViewModel.swift
+│   │   ├── DebugPanelViewModel.swift
+│   │   └── OfferPresentation.swift      # neutral offer copy
 │   ├── Views/
+│   │   ├── AppRootView.swift            # navigation, debug sheet, announcements
 │   │   ├── RestaurantListView.swift
 │   │   ├── MenuView.swift
 │   │   ├── CartView.swift
 │   │   ├── CheckoutView.swift
 │   │   ├── OfferBanner.swift
-│   │   └── DebugPanelView.swift
+│   │   ├── DebugPanelView.swift
+│   │   ├── InteractiveRegion.swift      # frame registry for dead-tap detection
+│   │   └── Styles.swift                 # accessible colors, button style, adaptive layout
 │   ├── Config/
 │   │   ├── ScoringConfig.swift
 │   │   └── OfferConfig.swift
@@ -383,7 +435,12 @@ CalmCourier/
 │   ├── AgitationScorerTests.swift
 │   ├── BatteryContextTests.swift
 │   ├── OfferEngineTests.swift
-│   └── ScenarioTests.swift
+│   ├── ScenarioTests.swift
+│   ├── SignalDetectorTests.swift
+│   ├── ViewModelTests.swift
+│   └── TestSupport.swift
+├── CalmCourierUITests/
+│   └── CalmCourierUITests.swift         # flows and accessibility audits
 ├── Screenshots/
 └── README.md
 ```
@@ -397,7 +454,7 @@ CalmCourier/
 - **Rule-based, not learned.** A hand-written scorer is transparent and testable. A model would be harder to explain and would need data this project does not have.
 - **Dead-tap accuracy.** SwiftUI hit testing is imprecise without a registry of interactive frames, so dead taps are approximate.
 - **Simulator gaps.** No real motion or battery data, and touch timing differs from a device. The battery override and event injection exist to cover this.
-- **Accessibility is not modelled.** Users of Switch Control, VoiceOver, or assistive input produce very different interaction patterns, and the scorer does not account for them.
+- **Assistive technology pauses touch signals.** VoiceOver, Switch Control, and AssistiveTouch produce tap and scroll patterns that look like frustration, so rage taps, dead taps, scroll reversals, and flicks are ignored while any of them is running. Checkout failures, navigation, typing, and shake still count. Voice Control has no public detection API, so it can't be paused automatically. People using it can turn adaptive offers off instead.
 - **No persistence of behavioral data.** Keeping signals in memory means there is no personal baseline across launches, and also nothing to leak.
 
 ## License

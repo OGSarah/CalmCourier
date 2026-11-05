@@ -1,0 +1,54 @@
+[
+  {
+    "id": "harbor-noodle",
+    "name": "Harbor Noodle House",
+    "cuisine": "Noodles and dumplings",
+    "etaMinutes": 25,
+    "symbolName": "fork.knife",
+    "menu": [
+      { "id": "hn-ramen", "name": "Shoyu ramen", "details": "Soy broth, egg, scallion", "priceCents": 1450, "symbolName": "takeoutbag.and.cup.and.straw" },
+      { "id": "hn-dumplings", "name": "Pork dumplings", "details": "Six pieces, chili oil", "priceCents": 900, "symbolName": "circle.grid.2x2" },
+      { "id": "hn-greens", "name": "Garlic greens", "details": "Wok-fried bok choy", "priceCents": 750, "symbolName": "leaf" },
+      { "id": "hn-tea", "name": "Iced jasmine tea", "details": "Lightly sweetened", "priceCents": 400, "symbolName": "cup.and.saucer" }
+    ]
+  },
+  {
+    "id": "little-oven",
+    "name": "Little Oven Pizza",
+    "cuisine": "Wood-fired pizza",
+    "etaMinutes": 30,
+    "symbolName": "flame",
+    "menu": [
+      { "id": "lo-margherita", "name": "Margherita pizza", "details": "Tomato, mozzarella, basil", "priceCents": 1200, "symbolName": "circle.circle" },
+      { "id": "lo-mushroom", "name": "Mushroom pizza", "details": "Roasted mushrooms, thyme", "priceCents": 1400, "symbolName": "circle.circle" },
+      { "id": "lo-salad", "name": "Rocket salad", "details": "Lemon, parmesan", "priceCents": 850, "symbolName": "leaf" },
+      { "id": "lo-tiramisu", "name": "Tiramisu", "details": "Espresso, mascarpone", "priceCents": 700, "symbolName": "birthday.cake" }
+    ]
+  },
+  {
+    "id": "green-bowl",
+    "name": "Green Bowl Kitchen",
+    "cuisine": "Salads and grain bowls",
+    "etaMinutes": 20,
+    "symbolName": "carrot",
+    "menu": [
+      { "id": "gb-harvest", "name": "Harvest bowl", "details": "Farro, squash, kale", "priceCents": 1300, "symbolName": "carrot" },
+      { "id": "gb-falafel", "name": "Falafel wrap", "details": "Tahini, pickles", "priceCents": 1100, "symbolName": "takeoutbag.and.cup.and.straw" },
+      { "id": "gb-soup", "name": "Lentil soup", "details": "Cumin, lemon", "priceCents": 650, "symbolName": "mug" },
+      { "id": "gb-juice", "name": "Green juice", "details": "Apple, cucumber, ginger", "priceCents": 600, "symbolName": "waterbottle" }
+    ]
+  },
+  {
+    "id": "taco-corner",
+    "name": "Taco Corner",
+    "cuisine": "Tacos and burritos",
+    "etaMinutes": 15,
+    "symbolName": "sun.max",
+    "menu": [
+      { "id": "tc-alpastor", "name": "Al pastor tacos", "details": "Three tacos, pineapple", "priceCents": 1050, "symbolName": "sun.max" },
+      { "id": "tc-burrito", "name": "Bean burrito", "details": "Rice, salsa verde", "priceCents": 1150, "symbolName": "takeoutbag.and.cup.and.straw" },
+      { "id": "tc-chips", "name": "Chips and guacamole", "details": "Made to order", "priceCents": 650, "symbolName": "triangle" },
+      { "id": "tc-horchata", "name": "Horchata", "details": "Rice and cinnamon", "priceCents": 450, "symbolName": "cup.and.saucer" }
+    ]
+  }
+]
