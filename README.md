@@ -183,70 +183,9 @@ sequenceDiagram
 
    Every point in the score traces to a logged event. Weights live in `ScoringConfig` and can be tuned from the debug panel. Decay is exponential with a 20 second half-life, and a tier change only applies after the score has stayed past a threshold for 3 seconds.
 
-   ```swift
-   struct BatteryContext {
-       let level: Float?        // nil if unknown (simulator reports -1)
-       let isCharging: Bool
-       let lowPowerMode: Bool
-
-       var multiplier: Double {
-           guard let level, !isCharging else { return 1.0 }
-           if level <= 0.10 { return 1.5 }
-           if level <= 0.20 { return 1.25 }
-           return 1.0
-       }
-
-       var baseline: Double {
-           var points = 0.0
-           if let level, !isCharging {
-               if level <= 0.10 { points += 15 }
-               else if level <= 0.20 { points += 10 }
-           }
-           if lowPowerMode { points += 5 }
-           return min(points, 15)   // hard cap: battery alone never reaches Uneasy
-       }
-   }
-
-   struct AgitationScorer {
-       private(set) var behavioralScore: Double = 0
-       private var lastUpdate = Date()
-       let halfLife: TimeInterval = 20
-
-       func effectiveScore(battery: BatteryContext) -> Double {
-           min(100, behavioralScore + battery.baseline)
-       }
-
-       mutating func add(_ event: SignalEvent, config: ScoringConfig, battery: BatteryContext) {
-           decay(to: Date())
-           behavioralScore = min(100, behavioralScore + config.weight(for: event) * battery.multiplier)
-       }
-
-       mutating func decay(to now: Date) {
-           let dt = now.timeIntervalSince(lastUpdate)
-           behavioralScore *= pow(0.5, dt / halfLife)
-           lastUpdate = now
-       }
-   }
-   ```
-
 4. **Pure logic away from the UI**
 
    `AgitationScorer`, `BatteryContext`, and `OfferEngine` import nothing from SwiftUI or UIKit. Time is passed into `decay(to:)` as a parameter in tests, so decay and hysteresis are deterministic without a clock.
-
-   ```swift
-   struct OfferEngine {
-       func offer(for tier: AgitationTier, cart: Cart) -> PricedCart {
-           let base = PricedCart(cart: cart, deliveryFee: cart.baseDeliveryFee, discount: 0)
-           let result: PricedCart = switch tier {
-           case .calm:       base
-           case .uneasy:     base.withDeliveryFee(base.deliveryFee * 0.5)
-           case .frustrated: base.withDeliveryFee(0).withDiscount(5.00)
-           }
-           precondition(result.total <= base.total, "Adaptive pricing must never exceed baseline")
-           return result
-       }
-   }
-   ```
 
 5. **Everything observable, because nothing here is trustworthy by itself**
 
@@ -303,48 +242,7 @@ Triple-tap the app title, or shake with the debug toggle on, to open `DebugPanel
 
 **2. The battery override replaces the hardware**
 
-Simulator has no real battery, and `UIDevice.batteryLevel` returns `-1`. `BatteryMonitor` exposes an override that the panel drives with a level slider, a charging toggle, and a Low Power Mode toggle:
-
-```swift
-@MainActor
-@Observable
-final class BatteryMonitor {
-    private(set) var context = BatteryContext(level: nil, isCharging: false, lowPowerMode: false)
-    var override: BatteryContext?        // set by the debug panel (simulator, demos)
-
-    var current: BatteryContext { override ?? context }
-
-    init() {
-        UIDevice.current.isBatteryMonitoringEnabled = true
-        refresh()
-
-        let center = NotificationCenter.default
-        center.addObserver(forName: UIDevice.batteryLevelDidChangeNotification,
-                           object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.refresh() }
-        }
-        center.addObserver(forName: UIDevice.batteryStateDidChangeNotification,
-                           object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.refresh() }
-        }
-        center.addObserver(forName: .NSProcessInfoPowerStateDidChange,
-                           object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.refresh() }
-        }
-    }
-
-    private func refresh() {
-        let device = UIDevice.current
-        let level = device.batteryLevel            // -1 when unknown
-        let state = device.batteryState
-        context = BatteryContext(
-            level: level >= 0 ? level : nil,
-            isCharging: state == .charging || state == .full,
-            lowPowerMode: ProcessInfo.processInfo.isLowPowerModeEnabled
-        )
-    }
-}
-```
+Simulator has no real battery, and `UIDevice.batteryLevel` returns `-1`. `BatteryMonitor` exposes an override that the panel drives with a level slider, a charging toggle, and a Low Power Mode toggle.
 
 Treat `-1` as unknown, not empty. `batteryLevel` is reported in coarse steps of roughly 5%, and a low battery on a charger is not urgent.
 
@@ -354,57 +252,15 @@ Shake detection needs a physical iPhone, and real touch timing only shows up on 
 
 ### Capturing signals
 
-**Touch.** SwiftUI has no app-wide touch observer, so a passive gesture recognizer is attached to the key window. It must not cancel or delay touches.
-
-```swift
-final class TouchCapture: NSObject, UIGestureRecognizerDelegate {
-    var onTap: ((CGPoint, Bool) -> Void)?   // location, hitInteractiveElement
-
-    func install(in window: UIWindow) {
-        let tap = UITapGestureRecognizer(target: self, action: #selector(handle(_:)))
-        tap.cancelsTouchesInView = false
-        tap.delaysTouchesBegan = false
-        tap.delegate = self
-        window.addGestureRecognizer(tap)
-    }
-
-    @objc private func handle(_ g: UITapGestureRecognizer) {
-        let point = g.location(in: g.view)
-        let hit = g.view?.hitTest(point, with: nil)
-        onTap?(point, hit is UIControl)
-    }
-
-    func gestureRecognizer(_ g: UIGestureRecognizer,
-                           shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
-}
-```
+**Touch.** SwiftUI has no app-wide touch observer, so a passive gesture recognizer is attached to the key window. It must not cancel or delay touches, and it recognizes simultaneously with every other gesture.
 
 Dead-tap detection is approximate because many tappable SwiftUI views are not `UIControl`s. Tag interactive views with `.accessibilityIdentifier` or keep a registry of tappable frames.
 
-**Scroll.** Use real timestamps rather than frame counts, since ProMotion displays refresh at variable rates, and smooth velocity with an exponential moving average.
-
-```swift
-ScrollView {
-    // content
-}
-.onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { old, new in
-    collector.scrollDidChange(from: old, to: new, at: CACurrentMediaTime())
-}
-```
+**Scroll.** Use real timestamps rather than frame counts, since ProMotion displays refresh at variable rates, and smooth velocity with an exponential moving average. `.onScrollGeometryChange(for:of:action:)` reports content offset changes, timestamped with `CACurrentMediaTime()`.
 
 **Typing.** Observe the text field with `.onChange(of:)` and track deletions by comparing string lengths between changes.
 
-**Motion.**
-
-```swift
-let motion = CMMotionManager()
-motion.accelerometerUpdateInterval = 1.0 / 30
-motion.startAccelerometerUpdates(to: .main) { data, _ in
-    guard let a = data?.acceleration else { return }
-    let magnitude = sqrt(a.x*a.x + a.y*a.y + a.z*a.z)
-    if magnitude > 2.2 { collector.record(.shake) }
-}
-```
+**Motion.** `CMMotionManager` samples the accelerometer at 30 Hz, and an acceleration magnitude above roughly 2.2 g is recorded as a shake.
 
 ## Requirements
 
