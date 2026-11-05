@@ -68,6 +68,9 @@ final class CartViewModel {
 
     var totalText: String { priced.total.currencyText }
 
+    var checkoutButtonTitle: String { "Go to checkout · \(totalText)" }
+    var checkoutButtonAccessibilityLabel: String { "Go to checkout, total \(totalText)" }
+
     func increase(_ line: Line) {
         environment.add(line.line.item)
     }

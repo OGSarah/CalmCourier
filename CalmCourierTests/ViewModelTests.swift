@@ -51,6 +51,7 @@ struct ViewModelTests {
         #expect(viewModel.deliveryFeeText == Decimal(string: "4.99")!.currencyText)
         #expect(viewModel.originalDeliveryFeeText == nil)
         #expect(viewModel.totalText == Decimal(string: "19.49")!.currencyText)
+        #expect(viewModel.checkoutButtonAccessibilityLabel == "Go to checkout, total \(viewModel.totalText)")
         #expect(viewModel.offer == nil)
     }
 
@@ -90,11 +91,16 @@ struct ViewModelTests {
         #expect(environment.offerTier == .calm)
     }
 
-    @Test("Only one agitation offer per session")
+    @Test("Only one agitation offer per session, held for the minimum duration")
     func cooldownThroughEnvironment() {
         harness.drive(uneasyEvents)
         #expect(environment.offerTier == .uneasy)
-        harness.tick(seconds: 60)
+        // The score decays to Calm within seconds, but the offer stays for a minute.
+        harness.tick(seconds: 30)
+        #expect(environment.scorer.tier == .calm)
+        #expect(environment.offerTier == .uneasy)
+        #expect(DebugPanelViewModel(environment: environment).cooldownText.hasPrefix("Uneasy offer held"))
+        harness.tick(seconds: 31)
         #expect(environment.offerTier == .calm)
         harness.drive(uneasyEvents)
         #expect(environment.scorer.tier == .uneasy)

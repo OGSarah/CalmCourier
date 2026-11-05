@@ -63,10 +63,11 @@ struct CartView: View {
         }
         .safeAreaInset(edge: .bottom) {
             if !viewModel.isEmpty {
-                Button("Go to checkout") {
+                Button(viewModel.checkoutButtonTitle) {
                     viewModel.checkout()
                 }
                 .buttonStyle(PrimaryButtonStyle())
+                .accessibilityLabel(viewModel.checkoutButtonAccessibilityLabel)
                 .accessibilityInputLabels(["Checkout", "Go to checkout"])
                 .interactiveRegion("checkout-button")
                 .padding()

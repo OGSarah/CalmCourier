@@ -63,31 +63,57 @@ struct OfferEngineTests {
         }
     }
 
+    let start = Date(timeIntervalSinceReferenceDate: 0)
+
     @Test("Cooldown blocks a second agitation offer in the same session")
     func cooldownBlocksSecondOffer() {
-        var cooldown = OfferCooldown()
-        #expect(cooldown.offerTier(for: .uneasy) == .uneasy)
-        #expect(cooldown.offerTier(for: .calm) == .calm)
+        var cooldown = OfferCooldown(minimumDuration: 60)
+        #expect(cooldown.offerTier(for: .uneasy, now: start) == .uneasy)
+        #expect(cooldown.offerTier(for: .calm, now: start + 60) == .calm)
         #expect(cooldown.isSpent)
-        #expect(cooldown.offerTier(for: .uneasy) == .calm)
-        #expect(cooldown.offerTier(for: .frustrated) == .calm)
+        #expect(cooldown.offerTier(for: .uneasy, now: start + 61) == .calm)
+        #expect(cooldown.offerTier(for: .frustrated, now: start + 62) == .calm)
     }
 
-    @Test("An active offer can escalate but does not shrink until calm")
+    @Test("An offer is held for the minimum duration after the score returns to Calm")
+    func cooldownMinimumDuration() {
+        var cooldown = OfferCooldown(minimumDuration: 60)
+        #expect(cooldown.offerTier(for: .uneasy, now: start) == .uneasy)
+        #expect(cooldown.offerTier(for: .calm, now: start + 10) == .uneasy)
+        #expect(cooldown.remainingHold(now: start + 10) == 50)
+        #expect(!cooldown.isSpent)
+        #expect(cooldown.offerTier(for: .calm, now: start + 59) == .uneasy)
+        #expect(cooldown.offerTier(for: .calm, now: start + 60) == .calm)
+        #expect(cooldown.isSpent)
+    }
+
+    @Test("An active offer can escalate, including during the hold, but does not shrink")
     func cooldownEscalation() {
-        var cooldown = OfferCooldown()
-        #expect(cooldown.offerTier(for: .uneasy) == .uneasy)
-        #expect(cooldown.offerTier(for: .frustrated) == .frustrated)
-        #expect(cooldown.offerTier(for: .uneasy) == .frustrated)
+        var cooldown = OfferCooldown(minimumDuration: 60)
+        #expect(cooldown.offerTier(for: .uneasy, now: start) == .uneasy)
+        #expect(cooldown.offerTier(for: .calm, now: start + 20) == .uneasy)
+        #expect(cooldown.offerTier(for: .frustrated, now: start + 30) == .frustrated)
+        #expect(cooldown.offerTier(for: .uneasy, now: start + 31) == .frustrated)
+    }
+
+    @Test("Escalating restarts the hold, so the bigger offer gets the full minimum duration")
+    func escalationRestartsHold() {
+        var cooldown = OfferCooldown(minimumDuration: 60)
+        _ = cooldown.offerTier(for: .uneasy, now: start)
+        _ = cooldown.offerTier(for: .frustrated, now: start + 50)
+        #expect(cooldown.offerTier(for: .calm, now: start + 70) == .frustrated)
+        #expect(cooldown.remainingHold(now: start + 70) == 40)
+        #expect(cooldown.offerTier(for: .calm, now: start + 110) == .calm)
+        #expect(cooldown.isSpent)
     }
 
     @Test("Resetting the cooldown allows a new offer")
     func cooldownReset() {
-        var cooldown = OfferCooldown()
-        _ = cooldown.offerTier(for: .uneasy)
-        _ = cooldown.offerTier(for: .calm)
+        var cooldown = OfferCooldown(minimumDuration: 60)
+        _ = cooldown.offerTier(for: .uneasy, now: start)
+        _ = cooldown.offerTier(for: .calm, now: start + 60)
         cooldown.reset()
-        #expect(cooldown.offerTier(for: .uneasy) == .uneasy)
+        #expect(cooldown.offerTier(for: .uneasy, now: start + 61) == .uneasy)
     }
 
     @Test("Offer copy stays neutral")

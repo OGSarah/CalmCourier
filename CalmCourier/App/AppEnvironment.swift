@@ -111,6 +111,7 @@ final class AppEnvironment {
     var basePricedCart: PricedCart { offerEngine.baseline(for: cart) }
     var pricedCart: PricedCart { offerEngine.offer(for: offerTier, cart: cart) }
     var timeUntilTierChange: TimeInterval? { scorer.timeUntilTierChange(now: now()) }
+    var currentDate: Date { now() }
 
     var scoringConfig: ScoringConfig {
         get { scorer.config }
@@ -140,7 +141,7 @@ final class AppEnvironment {
     func tick() {
         collector.tick()
         scorer.updateTier(battery: batteryContext, now: now())
-        offerTier = adaptiveOffersEnabled ? cooldown.offerTier(for: scorer.tier) : .calm
+        offerTier = adaptiveOffersEnabled ? cooldown.offerTier(for: scorer.tier, now: now()) : .calm
 
         sampleCounter += 1
         scoreHistory.append(ScoreSample(id: sampleCounter, score: effectiveScore))

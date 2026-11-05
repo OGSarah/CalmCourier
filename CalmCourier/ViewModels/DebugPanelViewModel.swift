@@ -49,7 +49,13 @@ final class DebugPanelViewModel {
 
     var cooldownText: String {
         if environment.cooldown.isSpent { return "Offer used this session" }
-        if let tier = environment.cooldown.activeTier { return "\(tier.displayName) offer active" }
+        if let tier = environment.cooldown.activeTier {
+            if environment.scorer.tier == .calm,
+               let remaining = environment.cooldown.remainingHold(now: environment.currentDate) {
+                return "\(tier.displayName) offer held \(Int(remaining.rounded(.up))) s more"
+            }
+            return "\(tier.displayName) offer active"
+        }
         return "Offer available"
     }
 

@@ -26,6 +26,7 @@ struct OfferBanner: View {
                 }
             }
             .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("offer-banner")
 
             if offer.showsSupportPrompt, let onSupport {
                 Button("Need help?", systemImage: "questionmark.bubble", action: onSupport)
@@ -34,7 +35,6 @@ struct OfferBanner: View {
             }
         }
         .padding(.vertical, 4)
-        .accessibilityIdentifier("offer-banner")
     }
 }
 

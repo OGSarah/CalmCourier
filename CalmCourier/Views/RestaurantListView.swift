@@ -22,7 +22,8 @@ struct RestaurantListView: View {
                 // Triple-tapping the app title is a shortcut. The toolbar button is the accessible path.
                 Text(viewModel.title)
                     .font(.largeTitle.bold())
-                    .foregroundStyle(.primary)
+                    // Color.primary, not the hierarchical `.primary`, which inherits the header's gray.
+                    .foregroundStyle(Color.primary)
                     .textCase(nil)
                     .accessibilityAddTraits(.isHeader)
                     .onTapGesture(count: 3) {

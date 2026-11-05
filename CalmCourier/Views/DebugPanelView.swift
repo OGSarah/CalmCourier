@@ -25,8 +25,12 @@ struct DebugPanelView: View {
                 settingsSection
 
                 Section {
-                    Button("Reset session", systemImage: "arrow.counterclockwise", role: .destructive) {
+                    Button(role: .destructive) {
                         viewModel.reset()
+                    } label: {
+                        Label("Reset session", systemImage: "arrow.counterclockwise")
+                            // Match the icon to the destructive text color.
+                            .foregroundStyle(.red)
                     }
                     .accessibilityHint("Clears the score, learned baseline, event log, and offer cooldown")
                 }
@@ -53,6 +57,7 @@ struct DebugPanelView: View {
                 Text(viewModel.scoreText)
             }
             .gaugeStyle(.linearCapacity)
+            .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
             .accessibilityValue("\(viewModel.scoreText) out of 100")
 
             LabeledContent("Behavioral", value: viewModel.behavioralScoreText)
@@ -88,14 +93,10 @@ struct DebugPanelView: View {
 
     private var batterySection: some View {
         Section {
-            LabeledContent("Level", value: viewModel.batteryLevelText)
-            LabeledContent("Charging", value: viewModel.chargingText)
-            LabeledContent("Low Power Mode", value: viewModel.lowPowerText)
-            LabeledContent("Event multiplier", value: viewModel.multiplierText)
-
             Toggle("Override battery", isOn: $viewModel.isOverrideEnabled)
                 .accessibilityIdentifier("battery-override-toggle")
 
+            // Overridden values are edited in place; hardware values are shown read-only.
             if viewModel.isOverrideEnabled {
                 VStack(alignment: .leading) {
                     Text("Battery level: \(viewModel.overrideLevelText)")
@@ -107,7 +108,13 @@ struct DebugPanelView: View {
                 }
                 Toggle("Charging", isOn: $viewModel.overrideCharging)
                 Toggle("Low Power Mode", isOn: $viewModel.overrideLowPower)
+            } else {
+                LabeledContent("Level", value: viewModel.batteryLevelText)
+                LabeledContent("Charging", value: viewModel.chargingText)
+                LabeledContent("Low Power Mode", value: viewModel.lowPowerText)
             }
+
+            LabeledContent("Event multiplier", value: viewModel.multiplierText)
         } header: {
             SectionHeader("Battery")
         }

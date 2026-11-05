@@ -74,6 +74,7 @@ struct AccessibleLabeledContentStyle: LabeledContentStyle {
             configuration.content
                 .foregroundStyle(Color.secondaryText)
                 .multilineTextAlignment(.trailing)
+                .layoutPriority(1)
         }
         .accessibilityElement(children: .combine)
     }

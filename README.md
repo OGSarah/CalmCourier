@@ -12,7 +12,15 @@ CalmCourier is a SwiftUI learning project for iOS 27 that explores whether a foo
 
 ## Screenshots
 
-No screenshots yet. Once the app is running, they would live in `Screenshots/` and cover the restaurant list, a cart showing each offer tier, the checkout failure flow, and the debug panel. Capture them on Simulator with the debug panel's battery override, since Simulator reports no real battery level.
+Captured on an iPhone 18 Pro Simulator running iOS 27.2, with the debug panel's battery override set to 80%, since Simulator reports no real battery level. Offers were triggered with injected events from the debug panel.
+
+| Restaurant list | Menu | Cart, Calm |
+| :---: | :---: | :---: |
+| <img src="Screenshots/01-restaurant-list.png" width="250" alt="Restaurant list with four restaurants and their delivery times"> | <img src="Screenshots/02-menu.png" width="250" alt="Harbor Noodle House menu with two items in the cart and a View cart button"> | <img src="Screenshots/03-cart-calm.png" width="250" alt="Cart with standard pricing and a $4.99 delivery fee"> |
+| **Cart, Uneasy** | **Cart, Frustrated** | **Checkout failure** |
+| <img src="Screenshots/05-cart-uneasy.png" width="250" alt="Cart with an offer banner and the delivery fee reduced from $4.99 to $2.50"> | <img src="Screenshots/06-cart-frustrated.png" width="250" alt="Cart with free delivery, a $5.00 discount, and a Need help button"> | <img src="Screenshots/07-checkout-failure.png" width="250" alt="Checkout showing a payment failure error"> |
+| **Debug panel** | | |
+| <img src="Screenshots/04-debug-panel.png" width="250" alt="Debug panel showing the effective score gauge, tiers, and offer cooldown"> | | |
 
 ## Key Features
 
@@ -256,8 +264,9 @@ All amounts are mock values in `Config/OfferConfig.swift`.
 
 1. Offers can only reduce cost relative to the calm baseline.
 2. At most one agitation offer per session (cooldown), so deliberately rage-tapping or draining the battery for coupons is not rewarded repeatedly.
-3. Offers use a neutral label such as "Here's a deal on us", never "We noticed you're upset" or "We noticed your battery is low".
-4. A visible setting turns adaptive offers off, which also stops battery monitoring.
+3. An offer stays for at least 60 seconds once it appears or escalates, even if the score decays back to Calm sooner, so a deal never vanishes while someone is still looking at it. It can escalate from Uneasy to Frustrated during that time, but never shrinks. The hold lives in `Config/OfferConfig.swift`.
+4. Offers use a neutral label such as "Here's a deal on us", never "We noticed you're upset" or "We noticed your battery is low".
+5. A visible setting turns adaptive offers off, which also stops battery monitoring.
 
 ## Testing the signals without being frustrated
 
@@ -330,7 +339,7 @@ Unit and scenario tests use [Swift Testing](https://developer.apple.com/document
 | :--- | :--- |
 | `AgitationScorerTests` | Expected points per event, decay halving after one half-life, clamping to 0 and 100, hysteresis preventing tier flicker |
 | `BatteryContextTests` | Multiplier and baseline for every level, charging, and Low Power Mode combination; baseline never above 15; charging or unknown level contributes nothing |
-| `OfferEngineTests` | Total never above baseline for any tier, cart, score, or battery state (property-style over many random inputs); cooldown blocking a second agitation offer |
+| `OfferEngineTests` | Total never above baseline for any tier, cart, score, or battery state (property-style over many random inputs); cooldown blocking a second agitation offer; the 60 second minimum hold and escalation during it |
 | `ScenarioTests` | Recorded event sequences and battery states fed through the scorer, asserting the tier reached |
 | `SignalDetectorTests` | Rage taps, dead taps, scroll reversals, flicks and the learned baseline, backspace bursts, back-and-forth navigation, and shakes; touch signals dropped while an assistive technology is active |
 | `ViewModelTests` | Display text and spoken labels for each screen, offer copy, cooldown, opt-out, checkout failures, and debug injections, on a manual clock |

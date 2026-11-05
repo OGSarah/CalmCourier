@@ -38,7 +38,8 @@ struct CheckoutView: View {
                 }
             } else {
                 Section {
-                    TextField("Promo code", text: $viewModel.promoCode)
+                    TextField("Promo code", text: $viewModel.promoCode,
+                              prompt: Text("Promo code").foregroundStyle(Color.secondaryText))
                         .textInputAutocapitalization(.characters)
                         .autocorrectionDisabled()
                         .submitLabel(.done)
