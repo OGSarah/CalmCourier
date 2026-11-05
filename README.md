@@ -446,3 +446,7 @@ Any real-world version of this idea would need legal and policy review. Dynamic 
 - **Dead-tap accuracy.** SwiftUI hit testing is imprecise without a registry of interactive frames.
 - **Simulator gaps.** No real motion or battery data, and touch timing differs from a device.
 - **Accessibility.** Users of Switch Control, VoiceOver, or assistive input produce very different interaction patterns, and the scorer does not account for them.
+
+## License
+
+Released under the [MIT License](LICENSE). © 2026 SarahUniverse
